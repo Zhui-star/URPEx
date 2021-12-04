@@ -1,49 +1,42 @@
-Shader "Unlit/NPRCharacter"
+Shader "GAREN/URP/NPRCharacter"
 {
     Properties
     {
+        _BaseMap("Main Texture",2D)="white" {}
+        [HDR]_BaseColor("Base Color", Color) = (1,1,1,1)
+        _LightTreshold("Light Treshold",Range(-1,1))=0
+        _LightOffsetX("Light Offset X",Range(-1,1))=0
+        _LightOffsetY("Light Offset Y",Range(-1,1))=0
+        _RampTexture("Ramp Texture",2D)="white" {}
+        _RampIntensity("Ramp Intensity",Range(0.5,2))=1.2
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" "RenderPipeline" = "UniversalPipeline" }
-        LOD 500
+        Tags {
+            "RenderPipeline" = "UniversalPipeline" 
+            "RenderType"="Opaque"          
+             }
 
+        LOD 100
+        
         Pass
-        {
+        { 
+            Name "ForwardLit"
+            Tags{"LightMode" = "UniversalForward"}
+
             HLSLPROGRAM
-            Tags{"ForwardBase"="UniversalForward"}
+
+            #pragma prefer_hlslcc gles
+            #pragma exclude_renderers d3d11_9x
+            #pragma target 3.0
+
+            #include "NPRCharacterInput.hlsl"
+            #include "NPRCharacterForward.hlsl"
 
             #pragma vertex ForwardVertex
             #pragma fragment ForwardFrag
 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-            struct ForwardInput
-            {
-                float4 positionObj : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct ForwardOutput
-            {
-                float4 uv : TEXCOORD0;
-                float4 postionClip : SV_POSITION;
-            };
-
-            ForwardOutput ForwardVertex (ForwardInput Input)
-            {
-                ForwardOutput output;
-                return o;
-            }
-
-            half4 ForwardFrag (ForwardOutput Input) : SV_Target
-            {
-                half4 outputColor;
-                outputColor= half4(1,1,1,1);
-
-                return outputColor;
-            }
-            ENDCG
+            ENDHLSL
         }
     }
 }
