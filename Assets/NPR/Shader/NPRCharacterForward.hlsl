@@ -1,6 +1,7 @@
 
 // 光照API 库
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+// 纹理采样库
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceInput.hlsl"
 #include "../../Common/Common.hlsl"
 
