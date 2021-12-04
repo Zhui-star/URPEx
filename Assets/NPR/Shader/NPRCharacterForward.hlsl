@@ -62,7 +62,7 @@ ForwardVertexOutput ForwardVertex (ForwardVertexInput input)
 half4 ForwardFrag (ForwardVertexOutput input) : SV_Target
 {
     //取得环境光RGB
-    half3 ambientColor = UNITY_LIGHTMODEL_AMBIENT.xyz;
+    half3 ambientColor =_GlossyEnvironmentColor .xyz*_EnviormentIntesity;
 
     //贴图采样
     half4 basemapColor=  SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap));

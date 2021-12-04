@@ -9,7 +9,8 @@
         half _LightOffsetY;     
         half4 _RampTexture_ST;     
         half4 _BaseMap_ST; 
-        half  _RampIntensity;                                                          
+        half  _RampIntensity;     
+        half _EnviormentIntesity;                                                     
  CBUFFER_END
 
 TEXTURE2D(_RampTexture); SAMPLER(sampler_RampTexture);

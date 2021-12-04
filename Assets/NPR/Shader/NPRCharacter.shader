@@ -9,6 +9,7 @@ Shader "GAREN/URP/NPRCharacter"
         _LightOffsetY("Light Offset Y",Range(-1,1))=0
         _RampTexture("Ramp Texture",2D)="white" {}
         _RampIntensity("Ramp Intensity",Range(0.5,2))=1.2
+        _EnviormentIntesity("Enviorment Intensity",Range(0,2))=0.2
     }
     SubShader
     {
