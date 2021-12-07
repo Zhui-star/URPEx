@@ -3,6 +3,8 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 // 纹理采样库
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceInput.hlsl"
+// 颜色库 (包含颜色转亮度值)
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 #include "../../Common/Common.hlsl"
 
 // 前向渲染输入结构体
@@ -51,7 +53,7 @@ ForwardVertexOutput ForwardVertex (ForwardVertexInput input)
     worldLightDir.y+=_LightOffsetY;
 
     //SafeNormalize 详解参考 Common.hlsl 做了一个 half min 约束
-    output.worldLightDir=SafeNormalize(worldLightDir-input.positionOS.xyz);
+    output.worldLightDir=SafeNormalize(worldLightDir);
 
     // 计算世界空间下的视角方向
     output.viewDirWS=SafeNormalize(GetWorldSpaceViewDir(output.positionWS));
@@ -66,25 +68,47 @@ half4 ForwardFrag (ForwardVertexOutput input) : SV_Target
     half3 ambientColor =_GlossyEnvironmentColor .xyz*_EnviormentIntesity;
 
     //贴图采样
-    half4 basemapColor=  SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap));
+    half4 basemapAlbedo =  SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap));
+    basemapAlbedo*=_BaseColor;
+    half4 shadeAlbedo= SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_ShadeMap, sampler_ShadeMap));
+    shadeAlbedo*=_ShadeColor;
 
     // 通过一个光照阀值控制阴影区域大小
-    half LDotN = step(_LightTreshold,dot(input.worldLightDir,input.normalWS));
-    half Lambert =LDotN*0.5+0.5;
+    half diffuseStep=_LightTreshold;
+    half LDotN =dot(input.worldLightDir,input.normalWS);
+    LDotN= saturate(LDotN- diffuseStep);
 
-    // 对漫反射的色阶进行控制
-    Lambert=smoothstep(0,1,Lambert);
-    half nprStep=floor(Lambert*2)/2;
+    //Step 控制色阶
+    half oneOverSteps=1.0h/_Steps;
+    half quantizedNdotL = floor(LDotN * _Steps);
 
-    //Ramp 采样分级
+    // 这里0.01h 说实话 我没法解释 aaStep详情请看Common.hlsl 是一个进阶版的Step 它将不在返回0/1 而是更加平滑 这对于边界非常好
+    half stepAreaControl=(oneOverSteps*dot(input.worldLightDir,input.normalWS)*_StepArea);
+    LDotN = (quantizedNdotL + aaStep(saturate(quantizedNdotL * oneOverSteps), LDotN - 0.01h))*stepAreaControl;
+
+    // 主光源分级
+    Light mainLight=GetMainLight();
+
+    // 亮部区域光照
+    half3 lightColor=mainLight.color*LDotN;
+    half luminance = Luminance(lightColor);
+
+    //色调分离
+    half4 litAlbedo=lerp(shadeAlbedo,basemapAlbedo, saturate(luminance));
+
+    // 主光源漫反射最终颜色
+    half3 diffuseLightColor=litAlbedo.rgb*litAlbedo.rgb;
+
+    // 全局光照计算 URP 全局光照计算变得非常简单 bakeGI Ambient light  light probe 等
+
+    /*//Ramp 采样分级
     half halfLamebert=HalfLamebert(input.worldLightDir,input.normalWS);
     half4 rampColor= SAMPLE_TEXTURE2D(_RampTexture, sampler_RampTexture,half2(halfLamebert,halfLamebert))*_RampIntensity;
-
-    //输出片元颜色
-    half3 diffuseColor= _MainLightColor.rgb*_BaseColor.rgb*nprStep*rampColor.rgb*basemapColor.rgb;
-
+    */
+    
+    //片原颜色输出
     half4 outputColor=half4(1,1,1,1);
-     outputColor.rgb=diffuseColor+ambientColor;
+    outputColor.rgb=diffuseLightColor+ambientColor;
 
     return outputColor;
 }

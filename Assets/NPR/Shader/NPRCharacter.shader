@@ -4,11 +4,16 @@ Shader "GAREN/URP/NPRCharacter"
     {
         _BaseMap("Main Texture",2D)="white" {}
         [HDR]_BaseColor("Base Color", Color) = (1,1,1,1)
-        _LightTreshold("Light Treshold",Range(-1,1))=0
+        //阴影区域贴图
+        _ShadeMap("Shade Map",2D)="white" {} 
+        //阴影区域颜色
+        _ShadeColor("Shade Color",Color)=(0.5,0.5,0.5,1)
+        _LightTreshold("Light Treshold",Range(0,1))=0
+        _Steps("Diffuse Steps",Range(1,5))=1
+        //Step 区域控制
+        _StepArea("Step Area",Range(0,20))=0
         _LightOffsetX("Light Offset X",Range(-1,1))=0
         _LightOffsetY("Light Offset Y",Range(-1,1))=0
-        _RampTexture("Ramp Texture",2D)="white" {}
-        _RampIntensity("Ramp Intensity",Range(0.5,2))=1.2
         _EnviormentIntesity("Enviorment Intensity",Range(0,2))=0.2
     }
     SubShader
