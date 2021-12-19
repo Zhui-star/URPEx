@@ -6,12 +6,12 @@
         half _LightOffsetX;
         half _LightOffsetY;        
         half4 _BaseMap_ST; 
-        half  _RampIntensity;     
-        half _EnviormentIntesity;   
+        half  _RampIntensity;       
         half4 _ShadeMap_ST;
         half4 _ShadeColor;  
         half _Steps;       
-        half _StepArea;                             
+        half _StepArea;          
+        half _GIOcclusion;               
  CBUFFER_END
 
 TEXTURE2D(_ShadeMap);SAMPLER(sampler_ShadeMap);

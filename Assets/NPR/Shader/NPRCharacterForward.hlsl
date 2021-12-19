@@ -1,29 +1,41 @@
 
 // 光照API 库
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+
 // 纹理采样库
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceInput.hlsl"
+
 // 颜色库 (包含颜色转亮度值)
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+
+// 数据输入库 包含InputData. InputData拥有bakeGI normalWS等等一系列封装方便实用Lighting.hlsl库中的光照计算
+//在core.hlsl 被引用
+
 #include "../../Common/Common.hlsl"
 
 // 前向渲染输入结构体
 struct ForwardVertexInput
 {
-    float4 positionOS : POSITION;   // 模型空间下的顶点位置
-    float4 normalOS :   NORMAL;     // 模型空间下的法线
-    float2 uv : TEXCOORD0;          // 第一套UV
+    float4 positionOS : POSITION;       // 模型空间下的顶点位置
+    float4 normalOS :   NORMAL;         // 模型空间下的法线
+    float2 uv : TEXCOORD0;              // 第一套UV
+
+    #if defined(LIGHTMAP_ON)        
+        float2 lightmapUV : TEXCOORD1;  //光照贴图UV
+    #endif
 };
 
 // 前向渲染输出结构体
 struct ForwardVertexOutput
 {
-    float4 uv : TEXCOORD0;          // XY 存储第一套UV, ZW TODO 
-    float4 positionCS : SV_POSITION; // 裁剪空间下的位置坐标
-    float3 positionWS: TEXCOORD1;      // 世界空间位置坐标
+    float4 uv : TEXCOORD0;             // XY 存储第一套UV, ZW TODO 
+    float4 positionCS : SV_POSITION;   //裁剪空间下的位置坐标
+    float3 positionWS: TEXCOORD1;      //世界空间位置坐标
     float3 normalWS : TECOORD2;        //世界空间法线法相
     float3 worldLightDir : TEXCOORD3;  //世界空间主光源方向
-    float3 viewDirWS    : TEXCOORD4;    // 世界空间下视角方向
+    float3 viewDirWS    : TEXCOORD4;   //世界空间下视角方向
+
+    DECLARE_LIGHTMAP_OR_SH(lightmapUV, vertexSH, 5); //声明光照贴图UV及球谐UV 
 };
 
 //前向渲染顶点着色器
@@ -39,6 +51,12 @@ ForwardVertexOutput ForwardVertex (ForwardVertexInput input)
 
     //UV
     output.uv.xy=input.uv;
+
+    //光照UV转换并且传入输出结构体 //Lighting.hlsl
+    OUTPUT_LIGHTMAP_UV(input.lightmapUV, unity_LightmapST, output.lightmapUV);
+
+    //球谐UV 转换
+    OUTPUT_SH(output.normalWS.xyz, output.vertexSH);
 
     // ShaderBaribleFunction.hlsl 声明 取得世界空间下的 切线 副切线 法线 方向
     VertexNormalInputs normalInput= GetVertexNormalInputs(input.normalOS.xyz);
@@ -61,17 +79,46 @@ ForwardVertexOutput ForwardVertex (ForwardVertexInput input)
     return output;
 }
 
+//初始化InputData 来自 universalrenderpipline/Input.hlsl
+ inline void InitializeInputData(ForwardVertexOutput input, half facing, out InputData inputData)
+ {
+      inputData = (InputData)0;
+
+      //无法线贴图的情况
+      inputData.normalWS = input.normalWS * facing;
+      inputData.viewDirectionWS =SafeNormalize(input.viewDirWS);
+      
+      //获得全局光照明
+      inputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, inputData.normalWS);
+      inputData.bakedGI*=(1-_GIOcclusion);
+ }
+
 //前向渲染片段着色器
-half4 ForwardFrag (ForwardVertexOutput input) : SV_Target
+// 正面的 VFACE 输入为正，
+// 背面的为负。根据这种情况
+// 输出两种颜色中的一种。
+half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
 {
-    //取得环境光RGB
-    half3 ambientColor =_GlossyEnvironmentColor .xyz*_EnviormentIntesity;
+    //片原颜色输出
+    half4 outputColor=(half4)0;
+       
+    // 主光源分级
+    Light mainLight=GetMainLight();
 
     //贴图采样
     half4 basemapAlbedo =  SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap));
     basemapAlbedo*=_BaseColor;
     half4 shadeAlbedo= SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_ShadeMap, sampler_ShadeMap));
     shadeAlbedo*=_ShadeColor;
+
+    //初始化InputData
+    InputData inputData;
+    InitializeInputData(input, facing, inputData);
+
+    //衰减BakeGI根据当前MaiNLIGHT方向 以及避免投递的阴影太暗等 缓和(阴影后续会加上) /urp/Lighting.hlsl
+    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, half4(0, 0, 0, 0));
+
+    half3 GI= inputData.bakedGI;
 
     // 通过一个光照阀值控制阴影区域大小
     half diffuseStep=_LightTreshold;
@@ -86,9 +133,6 @@ half4 ForwardFrag (ForwardVertexOutput input) : SV_Target
     half stepAreaControl=(oneOverSteps*dot(input.worldLightDir,input.normalWS)*_StepArea);
     LDotN = (quantizedNdotL + aaStep(saturate(quantizedNdotL * oneOverSteps), LDotN - 0.01h))*stepAreaControl;
 
-    // 主光源分级
-    Light mainLight=GetMainLight();
-
     // 亮部区域光照
     half3 lightColor=mainLight.color*LDotN;
     half luminance = Luminance(lightColor);
@@ -99,16 +143,16 @@ half4 ForwardFrag (ForwardVertexOutput input) : SV_Target
     // 主光源漫反射最终颜色
     half3 diffuseLightColor=litAlbedo.rgb*litAlbedo.rgb;
 
-    // 全局光照计算 URP 全局光照计算变得非常简单 bakeGI Ambient light  light probe 等
+    outputColor.rgb+=diffuseLightColor;
 
     /*//Ramp 采样分级
     half halfLamebert=HalfLamebert(input.worldLightDir,input.normalWS);
     half4 rampColor= SAMPLE_TEXTURE2D(_RampTexture, sampler_RampTexture,half2(halfLamebert,halfLamebert))*_RampIntensity;
     */
-    
-    //片原颜色输出
-    half4 outputColor=half4(1,1,1,1);
-    outputColor.rgb=diffuseLightColor+ambientColor;
+
+    // return half4(GI,1);
+    outputColor.rgb+=GI;
+
 
     return outputColor;
 }
