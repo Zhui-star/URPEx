@@ -12,8 +12,6 @@ Shader "GAREN/URP/NPRCharacter"
         _ShadeColor("Shade Color",Color)=(0.5,0.5,0.5,1)
         //阴影区域阀值 阀值越高阴影越少
         _LightTreshold("Light Treshold",Range(0,1))=0
-        //色阶层数
-        _Steps("Diffuse Steps",Range(1,5))=1
         //色阶区域控制
         _StepArea("Step Area",Range(0,20))=0
         //光源X轴偏移
@@ -47,13 +45,23 @@ Shader "GAREN/URP/NPRCharacter"
             #include "NPRCharacterForward.hlsl"
 
             /////////unity 内置变体/////////
+            //直射光 光照贴图混合全局光光照贴图
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
-            #pragma multi_compile _ LIGHTMAP
+            //开启光照贴图
+            #pragma multi_compile _ LIGHTMAP_ON
 
             ///////URP 渲染管线内置变体/////
-            #pragma multi_compile _ LIGHTMAP_SHADOW_MIXING
+            //全局光照与实时光照混合
+            #pragma multi_compile _ LIGHTMAP_SHADOW_MIXING     
+            
+            //阴影采样
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+
+            //支持软阴影
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+
             //全局像素着色器球谐光照
-            #pragma multi_compile _ EVALUATE_SH_MIXED 
+            //#pragma multi_compile _ EVALUATE_SH_MIXED 
 
             #pragma vertex ForwardVertex
             #pragma fragment ForwardFrag

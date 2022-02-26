@@ -13,6 +13,10 @@
 
 #include "../../Common/Common.hlsl"
 
+//阴影相关库
+//1. 获取阴影坐标
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+
 // 前向渲染输入结构体
 struct ForwardVertexInput
 {
@@ -91,6 +95,15 @@ ForwardVertexOutput ForwardVertex (ForwardVertexInput input)
       //获得全局光照明
       inputData.bakedGI = SAMPLE_GI(input.lightmapUV, input.vertexSH, inputData.normalWS);
       inputData.bakedGI*=(1-_GIOcclusion);
+
+      inputData.positionWS = input.positionWS;
+
+//阴影坐标获取
+#if defined(MAIN_LIGHT_CALCULATE_SHADOWS)
+      inputData.shadowCoord=TransformWorldToShadowCoord(input.positionWS);
+#else
+      inputData.shadowCoord=(float4)0;
+#endif
  }
 
 //前向渲染片段着色器
@@ -101,9 +114,6 @@ half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
 {
     //片原颜色输出
     half4 outputColor=(half4)0;
-       
-    // 主光源分级
-    Light mainLight=GetMainLight();
 
     //贴图采样
     half4 basemapAlbedo =  SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap));
@@ -115,6 +125,16 @@ half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
     InputData inputData;
     InitializeInputData(input, facing, inputData);
 
+    half4 shadowMask=half4(1,1,1,1);
+#if !defined(LIGHTMAP_ON)
+    shadowMask = unity_ProbesOcclusion;
+#endif
+
+    // 主光源分级
+    //全局光影响主光源强度
+    Light mainLight=GetMainLight(inputData.shadowCoord,inputData.positionWS,shadowMask);
+    
+    
     //衰减BakeGI根据当前MaiNLIGHT方向 以及避免投递的阴影太暗等 缓和(阴影后续会加上) /urp/Lighting.hlsl
     MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI, half4(0, 0, 0, 0));
 
@@ -126,12 +146,13 @@ half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
     LDotN= saturate(LDotN- diffuseStep);
 
     //Step 控制色阶
-    half oneOverSteps=1.0h/_Steps;
-    half quantizedNdotL = floor(LDotN * _Steps);
+    half oneOverSteps=1.0h/2;
+    half quantizedNdotL = floor(LDotN * 2);
 
     // 这里0.01h 说实话 我没法解释 aaStep详情请看Common.hlsl 是一个进阶版的Step 它将不在返回0/1 而是更加平滑 这对于边界非常好
     half stepAreaControl=(oneOverSteps*dot(input.worldLightDir,input.normalWS)*_StepArea);
-    LDotN = (quantizedNdotL + aaStep(saturate(quantizedNdotL * oneOverSteps), LDotN - 0.01h))*stepAreaControl;
+    LDotN = (quantizedNdotL + aaStep(saturate(quantizedNdotL * oneOverSteps), LDotN - 0.01h))
+    *stepAreaControl*mainLight.shadowAttenuation*mainLight.distanceAttenuation;
 
     // 亮部区域光照
     half3 lightColor=mainLight.color*LDotN;

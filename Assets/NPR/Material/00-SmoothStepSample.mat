@@ -133,13 +133,13 @@ Material:
     - _EnvironmentReflections: 1
     - _FlipbookBlending: 0
     - _FlipbookMode: 0
-    - _GIOcclusion: 0.4
+    - _GIOcclusion: 0.726
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _LightOffsetX: 0.133
     - _LightOffsetY: -0.657
-    - _LightTreshold: -1.99
+    - _LightTreshold: 0
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -154,7 +154,7 @@ Material:
     - _SoftParticlesNearFadeDistance: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _StepArea: 9.13
+    - _StepArea: 9.2
     - _Steps: 2
     - _Surface: 0
     - _UVSec: 0
