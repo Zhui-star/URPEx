@@ -12,8 +12,6 @@ Shader "GAREN/URP/NPRCharacter"
         _ShadeColor("Shade Color",Color)=(0.5,0.5,0.5,1)
         //阴影区域阀值 阀值越高阴影越少
         _LightTreshold("Light Treshold",Range(0,1))=0
-        //色阶区域控制
-        _StepArea("Step Area",Range(0,20))=0
         //光源X轴偏移
         _LightOffsetX("Light Offset X",Range(-1,1))=0
         //光源Y轴偏移

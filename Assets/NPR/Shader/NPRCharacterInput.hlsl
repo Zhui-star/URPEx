@@ -8,8 +8,7 @@
         half4 _BaseMap_ST; 
         half  _RampIntensity;       
         half4 _ShadeMap_ST;
-        half4 _ShadeColor;      
-        half _StepArea;          
+        half4 _ShadeColor;             
         half _GIOcclusion;               
  CBUFFER_END
 

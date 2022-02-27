@@ -146,13 +146,11 @@ half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
     LDotN= saturate(LDotN- diffuseStep);
 
     //Step 控制色阶
-    half oneOverSteps=1.0h/2;
-    half quantizedNdotL = floor(LDotN * 2);
+    half quantizedNdotL = floor(LDotN);
 
     // 这里0.01h 说实话 我没法解释 aaStep详情请看Common.hlsl 是一个进阶版的Step 它将不在返回0/1 而是更加平滑 这对于边界非常好
-    half stepAreaControl=(oneOverSteps*dot(input.worldLightDir,input.normalWS)*_StepArea);
-    LDotN = (quantizedNdotL + aaStep(saturate(quantizedNdotL * oneOverSteps), LDotN - 0.01h))
-    *stepAreaControl*mainLight.shadowAttenuation*mainLight.distanceAttenuation;
+    LDotN =  aaStep(saturate(quantizedNdotL), LDotN - 0.01h)
+    *mainLight.shadowAttenuation*mainLight.distanceAttenuation;
 
     // 亮部区域光照
     half3 lightColor=mainLight.color*LDotN;
