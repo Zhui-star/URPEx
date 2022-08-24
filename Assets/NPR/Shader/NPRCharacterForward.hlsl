@@ -120,7 +120,6 @@ half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
     basemapAlbedo*=_BaseColor;
     half4 shadeAlbedo= SampleAlbedoAlpha(input.uv.xy, TEXTURE2D_ARGS(_ShadeMap, sampler_ShadeMap));
     shadeAlbedo*=_ShadeColor;
-
     //初始化InputData
     InputData inputData;
     InitializeInputData(input, facing, inputData);
@@ -163,7 +162,6 @@ half4 ForwardFrag (ForwardVertexOutput input,half facing : VFACE) : SV_Target
     half3 diffuseLightColor=litAlbedo.rgb*litAlbedo.rgb;
 
     outputColor.rgb+=diffuseLightColor;
-
     /*//Ramp 采样分级
     half halfLamebert=HalfLamebert(input.worldLightDir,input.normalWS);
     half4 rampColor= SAMPLE_TEXTURE2D(_RampTexture, sampler_RampTexture,half2(halfLamebert,halfLamebert))*_RampIntensity;
